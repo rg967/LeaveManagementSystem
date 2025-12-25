@@ -1,0 +1,14 @@
+﻿@model TestViewModel
+@{
+    ViewData["title"] = "Test View";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome to test Controller</h1>
+    <h2>Your name is : @Model.Name</h2>
+    @if (Model.DOB.HasValue)
+    {
+        <h2>Your dob is : @Model.DOB</h2>
+    }
+    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+</div>
