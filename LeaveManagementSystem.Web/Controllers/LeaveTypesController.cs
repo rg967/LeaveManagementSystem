@@ -1,156 +1,163 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using LeaveManagementSystem.Web.Data;
+using LeaveManagementSystem.Web.Models.LeaveTypes;
+using LeaveManagementSystem.Web.Services;
 
-namespace LeaveManagementSystem.Web.Controllers
+namespace LeaveManagementSystem.Web.Controllers;
+
+public class LeaveTypesController(ILeaveTypesServices _leaveTypesServices) : Controller
 {
-    public class LeaveTypesController : Controller
+    
+    private const string NameExistsValidationMessage ="This leave type already exists in database.";
+    //private readonly ILeaveTypesServices _leaveTypesServices = leaveTypesServices;
+
+    // GET: LeaveTypes
+    public async Task<IActionResult> Index()
     {
-        private readonly ApplicationDbContext _context;
+        var viewData = await _leaveTypesServices.GetAll();
+        return View(viewData);
+    }
 
-        public LeaveTypesController(ApplicationDbContext context)
+    // GET: LeaveTypes/Details/5
+    public async Task<IActionResult> Details(int? id)
+    {
+        if (id == null)
         {
-            _context = context;
+            return NotFound();
         }
 
-        // GET: LeaveTypes
-        public async Task<IActionResult> Index()
+        var leaveType = await _leaveTypesServices.Get<LeaveTypeReadOnlyVM>(id.Value);
+        
+        if (leaveType == null)
         {
-            return View(await _context.LeaveTypes.ToListAsync());
+            return NotFound();
         }
 
-        // GET: LeaveTypes/Details/5
-        public async Task<IActionResult> Details(int? id)
+
+        return View(leaveType);
+    }
+
+    // GET: LeaveTypes/Create
+    public IActionResult Create()
+    {
+        return View();
+    }
+
+    // POST: LeaveTypes/Create
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    //public async Task<IActionResult> Create([Bind("Id,Name,NumberOfDays")] LeaveType leaveType)
+    public async Task<IActionResult> Create(LeaveTypeCreateVM leaveTypeCreate)
+    {
+        //Adding custom validation for model field that can't be handled by using Data Annotations
+        if (await _leaveTypesServices.CheckIfLeaveTypeNameExists(leaveTypeCreate.Name))
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var leaveType = await _context.LeaveTypes
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (leaveType == null)
-            {
-                return NotFound();
-            }
-
-            return View(leaveType);
+            ModelState.AddModelError(nameof(leaveTypeCreate.Name), NameExistsValidationMessage);
         }
-
-        // GET: LeaveTypes/Create
-        public IActionResult Create()
+        if (leaveTypeCreate.Name.Contains("vacation")) 
         {
-            return View();
+            ModelState.AddModelError(nameof(leaveTypeCreate.Name), "Not a valid name");
         }
-
-        // POST: LeaveTypes/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Name,NumberOfDays")] LeaveType leaveType)
+        if (ModelState.IsValid)
         {
-            if (ModelState.IsValid)
-            {
-                _context.Add(leaveType);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
-            }
-            return View(leaveType);
-        }
-
-        // GET: LeaveTypes/Edit/5
-        public async Task<IActionResult> Edit(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var leaveType = await _context.LeaveTypes.FindAsync(id);
-            if (leaveType == null)
-            {
-                return NotFound();
-            }
-            return View(leaveType);
-        }
-
-        // POST: LeaveTypes/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Name,NumberOfDays")] LeaveType leaveType)
-        {
-            if (id != leaveType.Id)
-            {
-                return NotFound();
-            }
-
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    _context.Update(leaveType);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!LeaveTypeExists(leaveType.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
-            }
-            return View(leaveType);
-        }
-
-        // GET: LeaveTypes/Delete/5
-        public async Task<IActionResult> Delete(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var leaveType = await _context.LeaveTypes
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (leaveType == null)
-            {
-                return NotFound();
-            }
-
-            return View(leaveType);
-        }
-
-        // POST: LeaveTypes/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var leaveType = await _context.LeaveTypes.FindAsync(id);
-            if (leaveType != null)
-            {
-                _context.LeaveTypes.Remove(leaveType);
-            }
-
-            await _context.SaveChangesAsync();
+            var leaveType = _leaveTypesServices.Create(leaveTypeCreate);
             return RedirectToAction(nameof(Index));
         }
-
-        private bool LeaveTypeExists(int id)
-        {
-            return _context.LeaveTypes.Any(e => e.Id == id);
-        }
+        return View(leaveTypeCreate);
     }
+
+    
+
+    // GET: LeaveTypes/Edit/5
+    public async Task<IActionResult> Edit(int? id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+        
+
+        var leaveType = await _leaveTypesServices.Get<LeaveTypeEditVM>(id.Value);
+        if (leaveType == null)
+        {
+            return NotFound();
+        }
+        return View(leaveType);
+    }
+
+    // POST: LeaveTypes/Edit/5
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    //public async Task<IActionResult> Edit(int id, [Bind("Id,Name,NumberOfDays")] LeaveType leaveType)
+    public async Task<IActionResult> Edit(int id, LeaveTypeEditVM leaveTypeEdit)
+    {
+        if (id != leaveTypeEdit.Id)
+        {
+            return NotFound();
+        }
+        //Adding custom validation for model field that can't be handled by using Data Annotations
+        if (await _leaveTypesServices.CheckIfLeaveTypeNameExistsForEdit(leaveTypeEdit))
+        {
+            ModelState.AddModelError(nameof(leaveTypeEdit.Name), NameExistsValidationMessage);
+        }
+
+        if (ModelState.IsValid)
+        {
+            try
+            {
+                await _leaveTypesServices.Edit(leaveTypeEdit);
+                
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!_leaveTypesServices.LeaveTypeExists(leaveTypeEdit.Id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+            return RedirectToAction(nameof(Index));
+        }
+        return View(leaveTypeEdit);
+    }
+
+    // GET: LeaveTypes/Delete/5
+    public async Task<IActionResult> Delete(int? id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        var leaveType = await _leaveTypesServices.Get<LeaveTypeReadOnlyVM>(id.Value);
+            
+        if (leaveType == null)
+        {
+            return NotFound();
+        }
+
+        return View(leaveType);
+    }
+
+    // POST: LeaveTypes/Delete/5
+    [HttpPost, ActionName("Delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteConfirmed(int id)
+    {
+        await _leaveTypesServices.Remove(id);
+        return RedirectToAction(nameof(Index));
+    }
+
+
+    
 }
